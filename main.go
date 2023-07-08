@@ -17,6 +17,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var CT_FETCH_INTERVAL = 30 * time.Minute
+var CT_INITIAL_TIMEOUT = time.Minute
+var CT_FAIL_TIMEOUT = 5 * time.Minute
+var CONFIG_LOAD_INTERVAL = time.Minute
+
 type Entry struct {
 	LeafInput ctgo.LeafInput `json:"leaf_input"`
 	ExtraData string         `json:"extra_data"`
@@ -106,12 +111,12 @@ func runLoop() {
 			lastTreeSize := lastTreeSizes[log]
 			if err != nil {
 				fmt.Printf("Failed to get STH @ %s: %s\n", log, err.Error())
-				time.Sleep(120 * time.Second)
+				time.Sleep(CT_FAIL_TIMEOUT)
 				continue
 			}
 			if lastTreeSize == 0 {
 				lastTreeSizes[log] = treeSize
-				time.Sleep(time.Minute)
+				time.Sleep(CT_INITIAL_TIMEOUT)
 				continue
 			}
 
@@ -168,7 +173,7 @@ func runLoop() {
 			lastTreeSizes[log] = treeSize
 		}
 		TargetDefinition.Mutex.Unlock()
-		time.Sleep(30 * time.Minute)
+		time.Sleep(CT_FETCH_INTERVAL)
 	}
 }
 
@@ -213,7 +218,7 @@ func main() {
 	go runLoop()
 	go awaitMessages()
 	for {
-		time.Sleep(time.Minute)
+		time.Sleep(CONFIG_LOAD_INTERVAL)
 		content, err := os.ReadFile("config.yml")
 		if err != nil {
 			fmt.Println("Failed to read config file (config.yml):", err.Error())
