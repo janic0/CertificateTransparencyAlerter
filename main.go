@@ -165,7 +165,7 @@ func runLoop() {
 						break
 					}
 				}
-				if triggered || true {
+				if triggered {
 					message := fmt.Sprintf("Issuer: %s\nSubject: %s\nAlgorithm: %s\nSHA-1: %X\nSHA-256: %X\nSerial: %X\nValid after: %s\nValid until: %s\n",
 						cert.Issuer.String(),
 						cert.Subject.String(),
@@ -178,10 +178,10 @@ func runLoop() {
 					)
 					fmt.Println(strings.Join(cert.DNSNames, ", "), message)
 
-					// MessageQueue <- Message{
-					// 	Title:   "Certificate issued to: " + strings.Join(cert.DNSNames, ", "),
-					// 	Message: message,
-					// }
+					MessageQueue <- Message{
+						Title:   "Certificate issued to: " + strings.Join(cert.DNSNames, ", "),
+						Message: message,
+					}
 				}
 			}
 
