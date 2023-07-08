@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
@@ -103,6 +105,8 @@ func getEntries(root string, start int64, end int64) ([]ctgo.LeafEntry, error) {
 }
 
 func runLoop() {
+	// Wait for config to be loaded.
+	time.Sleep(1 * time.Second)
 	lastTreeSizes := make(map[string]int64)
 	for true {
 		TargetDefinition.Mutex.Lock()
@@ -161,12 +165,23 @@ func runLoop() {
 						break
 					}
 				}
-				if triggered {
-					fmt.Println(strings.Join(cert.DNSNames, ", "), fmt.Sprintf("Issuer: %s\nSubject: %s\nValid after: %s\nValid until: %s\n", cert.Issuer.String(), cert.Subject.String(), cert.NotBefore.String(), cert.NotAfter.String()))
-					MessageQueue <- Message{
-						Title:   "Certificate issued to: " + strings.Join(cert.DNSNames, ", "),
-						Message: fmt.Sprintf("Issuer: %s\nSubject: %s\nValid after:%s\nValid until:%s\n", cert.Issuer.String(), cert.Subject.String(), cert.NotBefore.String(), cert.NotAfter.String()),
-					}
+				if triggered || true {
+					message := fmt.Sprintf("Issuer: %s\nSubject: %s\nAlgorithm: %s\nSHA-1: %X\nSHA-256: %X\nSerial: %X\nValid after: %s\nValid until: %s\n",
+						cert.Issuer.String(),
+						cert.Subject.String(),
+						cert.PublicKeyAlgorithm.String(),
+						sha1.Sum(cert.Raw),
+						sha256.Sum256(cert.Raw),
+						cert.SerialNumber,
+						cert.NotBefore.String(),
+						cert.NotAfter.String(),
+					)
+					fmt.Println(strings.Join(cert.DNSNames, ", "), message)
+
+					// MessageQueue <- Message{
+					// 	Title:   "Certificate issued to: " + strings.Join(cert.DNSNames, ", "),
+					// 	Message: message,
+					// }
 				}
 			}
 
@@ -218,21 +233,23 @@ func main() {
 	go runLoop()
 	go awaitMessages()
 	for {
-		time.Sleep(CONFIG_LOAD_INTERVAL)
 		content, err := os.ReadFile("config.yml")
 		if err != nil {
 			fmt.Println("Failed to read config file (config.yml):", err.Error())
+			time.Sleep(CONFIG_LOAD_INTERVAL)
 			continue
 		}
 		config := &ConfigFormat{}
 		err = yaml.Unmarshal(content, config)
 		if err != nil {
 			fmt.Println("Error in config file (config.yml):", err.Error())
+			time.Sleep(CONFIG_LOAD_INTERVAL)
 			continue
 		}
 		TargetDefinition.Mutex.Lock()
 		TargetDefinition.Logs = config.Logs
 		TargetDefinition.Queries = config.Queries
 		TargetDefinition.Mutex.Unlock()
+		time.Sleep(CONFIG_LOAD_INTERVAL)
 	}
 }
